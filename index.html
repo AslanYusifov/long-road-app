@@ -1,0 +1,1402 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Long Road Transportation</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap');
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+[data-theme="dark"] {
+  --bg: #0e0f11; --surface: #16181c; --surface2: #1e2026;
+  --border: #2a2d35; --border2: #363a45; --text: #e8eaf0; --muted: #6b7080;
+  --accent: #e8c547; --accent2: #c9a82e; --green: #4caf82; --red: #e05252;
+  --card-bg: #16181c; --card-hover: #1e2026;
+}
+[data-theme="light"] {
+  --bg: #f4f3ef; --surface: #ffffff; --surface2: #f0efeb;
+  --border: #dddbd4; --border2: #c8c6be; --text: #1a1b1e; --muted: #7a7870;
+  --accent: #b8960a; --accent2: #9a7d08; --green: #2d7a52; --red: #c0392b;
+  --card-bg: #ffffff; --card-hover: #f7f6f2;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+#map-bg {
+  position: fixed; inset: 0; z-index: 0;
+  pointer-events: none;
+  filter: grayscale(1) invert(1) brightness(0.28);
+  transition: filter 0.3s;
+  overflow: hidden;
+}
+[data-theme="light"] #map-bg {
+  filter: grayscale(1) brightness(0.75);
+}
+#map-bg iframe {
+  width: calc(100% + 60px); height: calc(100% + 60px);
+  border: none; display: block;
+  position: absolute; top: -30px; left: -30px;
+}
+
+body {
+  background: var(--bg);
+  position: relative; z-index: 1;
+  background: var(--bg); color: var(--text);
+  font-family: 'IBM Plex Sans', sans-serif;
+  min-height: 100vh; display: flex; align-items: flex-start;
+  justify-content: center; padding: 2.5rem 1rem 4rem;
+  transition: background 0.3s, color 0.3s;
+}
+
+.page { display: none; width: 100%; max-width: 560px; position: relative; z-index: 2; }
+#page-home { max-width: 1100px; }
+
+/* Dark overlay - only on inner pages */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  background: rgba(10, 11, 13, 0);
+  pointer-events: none;
+  transition: background 0.3s;
+}
+body.inner-page::before {
+  background: rgba(10, 11, 13, 0.82);
+}
+[data-theme="light"] body.inner-page::before {
+  background: rgba(240, 238, 232, 0.85);
+}
+.page.active { display: block; }
+
+/* HEADER */
+.header {
+  margin-bottom: 2.5rem; border-bottom: 1px solid var(--border);
+  padding-bottom: 1.5rem; display: flex; align-items: flex-end; justify-content: space-between;
+}
+.company { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--accent); letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 8px; }
+h1 { font-size: 22px; font-weight: 300; letter-spacing: -0.02em; color: var(--text); }
+h1 span { color: var(--muted); }
+
+/* THEME TOGGLE */
+.theme-toggle { display: flex; align-items: center; gap: 8px; cursor: pointer; user-select: none; }
+.theme-icon { color: var(--muted); transition: color 0.3s; line-height: 1; }
+.toggle-track {
+  width: 42px; height: 22px; background: var(--border); border-radius: 11px;
+  position: relative; transition: background 0.3s; border: 1px solid var(--border2);
+}
+.toggle-thumb {
+  position: absolute; top: 2px; left: 2px; width: 16px; height: 16px;
+  background: var(--accent); border-radius: 50%;
+  transition: transform 0.3s cubic-bezier(.4,0,.2,1);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+}
+[data-theme="light"] .toggle-thumb { transform: translateX(20px); }
+
+/* NAV BUTTON */
+.nav-btn {
+  display: flex; align-items: center; gap: 6px;
+  font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--muted); background: none;
+  border: 1px solid var(--border); border-radius: 4px; padding: 6px 12px;
+  cursor: pointer; transition: all 0.15s; white-space: nowrap;
+}
+.nav-btn:hover { color: var(--text); border-color: var(--border2); }
+.nav-btn svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 1.8; flex-shrink: 0; }
+
+/* HOME MENU */
+.menu-section-label {
+  font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--muted);
+  letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 10px;
+  display: flex; align-items: center; gap: 10px;
+}
+.menu-section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+.menu-cards { display: flex; flex-direction: column; gap: 8px; margin-bottom: 2rem; }
+.menu-card {
+  display: flex; align-items: center; gap: 16px; padding: 16px 18px;
+  background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px;
+  cursor: pointer; transition: background 0.15s, border-color 0.15s, transform 0.1s;
+}
+.menu-card:hover { background: var(--card-hover); border-color: var(--border2); }
+.menu-card:active { transform: scale(0.99); }
+.menu-card.disabled { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
+.card-icon {
+  width: 38px; height: 38px; border-radius: 8px;
+  background: rgba(232,197,71,0.1); border: 1px solid rgba(232,197,71,0.2);
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+[data-theme="light"] .card-icon { background: rgba(184,150,10,0.1); border-color: rgba(184,150,10,0.2); }
+.card-icon svg { width: 18px; height: 18px; stroke: var(--accent); fill: none; stroke-width: 1.7; }
+.card-body { flex: 1; }
+.card-title { font-size: 14px; font-weight: 500; color: var(--text); margin-bottom: 2px; }
+.card-desc { font-size: 12px; color: var(--muted); font-family: 'IBM Plex Mono', monospace; }
+.card-arrow svg { width: 16px; height: 16px; stroke: var(--muted); fill: none; stroke-width: 2; }
+.badge {
+  font-family: 'IBM Plex Mono', monospace; font-size: 9px; letter-spacing: 0.06em;
+  text-transform: uppercase; padding: 2px 7px; border-radius: 10px;
+  background: var(--surface2); color: var(--muted); border: 1px solid var(--border);
+}
+
+/* GENERATOR FORM */
+.tabs { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin-bottom: 2rem; }
+.tab {
+  padding: 10px 8px; font-family: 'IBM Plex Mono', monospace; font-size: 11px;
+  letter-spacing: 0.05em; text-transform: uppercase; text-align: center; cursor: pointer;
+  border: 1px solid var(--border); border-radius: 4px; background: var(--surface);
+  color: var(--muted); transition: all 0.15s; user-select: none;
+}
+.tab:hover { border-color: var(--border2); color: var(--text); }
+.tab.active { border-color: var(--accent); color: var(--accent); background: rgba(232,197,71,0.06); }
+.field-label { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 6px; display: block; }
+.field { margin-bottom: 1rem; }
+input[type=text] {
+  width: 100%; background: var(--surface); border: 1px solid var(--border);
+  border-radius: 4px; padding: 10px 12px; color: var(--text);
+  font-family: 'IBM Plex Mono', monospace; font-size: 14px; outline: none; transition: border-color 0.15s;
+}
+input[type=text]:focus { border-color: var(--accent); }
+input[type=text]::placeholder { color: var(--muted); }
+.row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.time-picker {
+  display: flex; align-items: center; gap: 6px; background: var(--surface);
+  border: 1px solid var(--border); border-radius: 4px; padding: 6px 10px; transition: border-color 0.15s;
+}
+.time-picker:focus-within { border-color: var(--accent); }
+.time-picker input[type=text] { width: 36px; background: none; border: none; padding: 4px 2px; text-align: center; font-size: 15px; }
+.time-picker input[type=text]:focus { outline: none; }
+.time-sep { color: var(--muted); font-family: 'IBM Plex Mono', monospace; font-size: 15px; user-select: none; }
+.ampm-group { display: flex; gap: 4px; margin-left: 4px; }
+.ampm-btn {
+  font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 500;
+  letter-spacing: 0.05em; padding: 4px 8px; border-radius: 3px;
+  border: 1px solid var(--border); background: none; color: var(--muted); cursor: pointer; transition: all 0.15s;
+}
+.ampm-btn:hover { border-color: var(--border2); color: var(--text); }
+.ampm-btn.active { background: rgba(232,197,71,0.12); border-color: var(--accent); color: var(--accent); }
+.divider { border: none; border-top: 1px solid var(--border); margin: 1.5rem 0; }
+.generate-btn {
+  width: 100%; padding: 12px; background: var(--accent); color: #0e0f11;
+  font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 500;
+  letter-spacing: 0.1em; text-transform: uppercase; border: none; border-radius: 4px;
+  cursor: pointer; transition: background 0.15s, transform 0.1s;
+}
+.generate-btn:hover { background: var(--accent2); }
+.generate-btn:active { transform: scale(0.99); }
+.result { margin-top: 1.5rem; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; display: none; }
+.result-header { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: var(--surface2); border-bottom: 1px solid var(--border); }
+.result-type { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--green); letter-spacing: 0.1em; text-transform: uppercase; }
+.copy-btn {
+  font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--muted); background: none;
+  border: 1px solid var(--border); border-radius: 3px; padding: 4px 10px; cursor: pointer; transition: all 0.15s;
+}
+.copy-btn:hover { color: var(--text); border-color: var(--border2); }
+.copy-btn.copied { color: var(--green); border-color: var(--green); }
+.result-text { padding: 1.25rem; font-family: 'IBM Plex Mono', monospace; font-size: 13px; line-height: 1.9; color: var(--text); white-space: pre-wrap; word-break: break-word; }
+.error { margin-top: 10px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--red); display: none; }
+
+/* TEMPLATES */
+.stpl-tabs { display: flex; gap: 4px; margin-bottom: 1.25rem; }
+.stpl-tab {
+  font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.06em;
+  text-transform: uppercase; padding: 6px 14px; border-radius: 3px;
+  border: 1px solid var(--border); background: none; color: var(--muted); cursor: pointer; transition: all 0.15s;
+}
+.stpl-tab:hover { color: var(--text); border-color: var(--border2); }
+.stpl-tab.active { color: var(--accent); border-color: var(--accent); background: rgba(232,197,71,0.06); }
+.stpl-panel { display: none; }
+.stpl-panel.open { display: block; }
+.tpl-section-label { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 8px; display: block; }
+.tpl-editor {
+  width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 4px;
+  padding: 10px 12px; color: var(--text); font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px; line-height: 1.8; min-height: 150px; outline: none;
+  transition: border-color 0.15s; white-space: pre-wrap; word-break: break-word; overflow-y: auto;
+}
+.tpl-editor:focus { border-color: var(--accent); }
+.tpl-editor .var-valid { color: var(--accent); }
+.tpl-editor .var-invalid { color: var(--red); }
+.vars-hint {
+  margin-top: 8px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: var(--muted);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 10px;
+}
+.var-tag {
+  display: inline-block; background: rgba(232,197,71,0.08);
+  border: 1px solid rgba(232,197,71,0.25); border-radius: 3px;
+  padding: 1px 5px; color: var(--accent); margin: 0 2px;
+}
+.settings-actions { display: flex; gap: 8px; margin-top: 1.5rem; }
+.btn-save {
+  flex: 1; padding: 10px; background: var(--accent); color: #0e0f11;
+  font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 500;
+  letter-spacing: 0.08em; text-transform: uppercase; border: none; border-radius: 4px; cursor: pointer; transition: background 0.15s;
+}
+.btn-save:hover { background: var(--accent2); }
+.btn-reset {
+  padding: 10px 16px; background: none; color: var(--muted);
+  font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.08em;
+  text-transform: uppercase; border: 1px solid var(--border); border-radius: 4px; cursor: pointer; transition: all 0.15s;
+}
+.btn-reset:hover { color: var(--red); border-color: var(--red); }
+.save-msg { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--green); margin-top: 10px; min-height: 18px; }
+
+/* GATE SCHEDULE */
+.schedule-wrap {
+  border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
+  background: var(--surface); position: relative; min-height: 480px;
+}
+.schedule-loading {
+  position: absolute; inset: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 12px;
+  color: var(--muted); font-family: 'IBM Plex Mono', monospace; font-size: 12px;
+  pointer-events: none; z-index: 2;
+}
+.schedule-loading svg { animation: spin 1s linear infinite; }
+.schedule-blocked {
+  display: none; flex-direction: column; align-items: center;
+  justify-content: center; gap: 16px; text-align: center; padding: 3rem 2rem;
+}
+.schedule-blocked-title { font-size: 14px; font-weight: 500; color: var(--text); margin-bottom: 4px; }
+.schedule-blocked-desc { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--muted); line-height: 1.7; }
+.schedule-iframe { width: 100%; height: 700px; border: none; display: block; opacity: 0; transition: opacity 0.4s; }
+.schedule-footer { margin-top: 8px; font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--muted); letter-spacing: 0.04em; }
+</style>
+</head>
+<body>
+
+<div id="map-bg">
+  <iframe src="https://www.openstreetmap.org/export/embed.html?bbox=-122.55%2C47.18%2C-122.35%2C47.33&amp;layer=mapnik" scrolling="no"></iframe>
+</div>
+
+<!-- HOME PAGE -->
+<div class="page active" id="page-home">
+  <div class="header">
+    <div>
+      <div class="company">Long Road Transportation · Seattle, WA</div>
+      <h1>Dashboard</h1>
+    </div>
+    <div class="theme-toggle" onclick="toggleTheme()">
+      <span class="theme-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></span>
+      <div class="toggle-track"><div class="toggle-thumb"></div></div>
+      <span class="theme-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg></span>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:2rem;align-items:start;">
+
+    <!-- LEFT -->
+    <div>
+      <div id="weather-widget" style="margin-bottom:2rem;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.25rem 1.5rem;display:flex;align-items:center;justify-content:space-between;gap:16px;">
+        <div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--accent);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:6px;">Seattle, WA</div>
+          <div style="display:flex;align-items:baseline;gap:10px;">
+            <div id="wx-temp" style="font-size:36px;font-weight:300;letter-spacing:-0.02em;color:var(--text);">--°</div>
+            <div>
+              <div id="wx-desc" style="font-size:13px;color:var(--text);">Loading...</div>
+              <div id="wx-feels" style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted);margin-top:2px;"></div>
+              <div id="wx-age" style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted);margin-top:2px;opacity:0.6;"></div>
+            </div>
+          </div>
+        </div>
+        <div style="text-align:right;">
+          <div id="wx-icon" style="font-size:36px;line-height:1;margin-bottom:6px;">🌤</div>
+          <div id="wx-time" style="font-family:'IBM Plex Mono',monospace;font-size:18px;font-weight:500;color:var(--text);letter-spacing:0.04em;">--:--:--</div>
+          <div id="wx-date" style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted);margin-top:2px;"></div>
+        </div>
+      </div>
+
+      <div class="menu-section-label">Automation</div>
+      <div class="menu-cards">
+        <div class="menu-card" onclick="goTo('generator')">
+          <div class="card-icon"><svg viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></div>
+          <div class="card-body"><div class="card-title">Email Generator</div><div class="card-desc">check-in · unloaded · port return</div></div>
+          <div class="card-arrow"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></div>
+        </div>
+        <div class="menu-card" onclick="goTo('schedule')">
+          <div class="card-icon"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
+          <div class="card-body"><div class="card-title">Gate Schedule</div><div class="card-desc">nwsa · terminals · daily status</div></div>
+          <div class="card-arrow"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></div>
+        </div>
+      </div>
+
+      <div class="menu-section-label">Contacts</div>
+      <div class="menu-cards">
+        <div class="menu-card" onclick="goTo('contacts')">
+          <div class="card-icon"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+          <div class="card-body"><div class="card-title">Terminal Contacts</div><div class="card-desc">terminals · emails · phones</div></div>
+          <div class="card-arrow"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></div>
+        </div>
+      </div>
+
+      <div class="menu-section-label">Info</div>
+      <div class="menu-cards">
+        <div class="menu-card" onclick="goTo('drivers')">
+          <div class="card-icon"><svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg></div>
+          <div class="card-body"><div class="card-title">Driver's License Plates</div><div class="card-desc">names · plates · search</div></div>
+          <div class="card-arrow"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></div>
+        </div>
+      </div>
+
+      <div class="menu-section-label">Coming Soon</div>
+      <div class="menu-cards">
+        <div class="menu-card disabled">
+          <div class="card-icon" style="background:var(--surface2);border-color:var(--border);"><svg viewBox="0 0 24 24" style="stroke:var(--muted)"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg></div>
+          <div class="card-body"><div class="card-title">Automation #2</div><div class="card-desc">coming soon</div></div>
+          <span class="badge">Soon</span>
+        </div>
+        <div class="menu-card disabled">
+          <div class="card-icon" style="background:var(--surface2);border-color:var(--border);"><svg viewBox="0 0 24 24" style="stroke:var(--muted)"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></div>
+          <div class="card-body"><div class="card-title">Automation #3</div><div class="card-desc">coming soon</div></div>
+          <span class="badge">Soon</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: STANDBY CALCULATOR -->
+    <div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.5rem;">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--accent);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:1.25rem;display:flex;align-items:center;gap:10px;">
+          Standby Calculator
+          <span style="flex:1;height:1px;background:var(--border);display:block;"></span>
+          <span style="color:var(--muted);">$1 / min · 2h free</span>
+        </div>
+        <div class="row" style="margin-bottom:1rem;">
+          <div class="field">
+            <label class="field-label">Arrival</label>
+            <div class="time-picker">
+              <input type="text" id="sb-arr-hour" maxlength="2" placeholder="10" oninput="limitNum(this,23);sbAutoJump(this,'sb-arr-min')">
+              <span class="time-sep">:</span>
+              <input type="text" id="sb-arr-min" maxlength="2" placeholder="00" oninput="limitNum(this,59)" onkeydown="sbBackJump(event,this,'sb-arr-hour')">
+            </div>
+          </div>
+          <div class="field">
+            <label class="field-label">Departure</label>
+            <div class="time-picker">
+              <input type="text" id="sb-dep-hour" maxlength="2" placeholder="14" oninput="limitNum(this,23);sbAutoJump(this,'sb-dep-min')">
+              <span class="time-sep">:</span>
+              <input type="text" id="sb-dep-min" maxlength="2" placeholder="00" oninput="limitNum(this,59)" onkeydown="sbBackJump(event,this,'sb-dep-hour')">
+            </div>
+          </div>
+        </div>
+        <button class="generate-btn" onclick="calcStandby()">Calculate</button>
+        <div class="error" id="sb-error" style="display:none;margin-top:8px;"></div>
+        <div id="sb-result" style="display:none;margin-top:1.25rem;">
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px;">
+            <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center;">
+              <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">Total</div>
+              <div id="sb-total" style="font-size:18px;font-weight:300;color:var(--text);">-</div>
+            </div>
+            <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center;">
+              <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">Standby</div>
+              <div id="sb-minutes" style="font-size:18px;font-weight:300;color:var(--text);">-</div>
+            </div>
+            <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center;">
+              <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">Amount</div>
+              <div id="sb-amount" style="font-size:18px;font-weight:300;">-</div>
+            </div>
+          </div>
+          <div id="sb-note" style="font-family:'IBM Plex Mono',monospace;font-size:10px;text-align:center;padding:8px 10px;background:var(--surface2);border-radius:6px;border:1px solid var(--border);line-height:1.7;"></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+<!-- GENERATOR PAGE -->
+<div class="page" id="page-generator">
+  <div class="header">
+    <div>
+      <div class="company">Long Road Transportation · Seattle, WA</div>
+      <h1>Email <span>Generator</span></h1>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <button class="nav-btn" onclick="goTo('templates')">
+        <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        Templates
+      </button>
+      <button class="nav-btn" onclick="goTo('home')">
+        <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+        Menu
+      </button>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" onclick="setType('checkin',this)">Check In</div>
+    <div class="tab" onclick="setType('unloaded',this)">Unloaded</div>
+    <div class="tab" onclick="setType('returned',this)">Port Return</div>
+  </div>
+
+  <div class="field">
+    <label class="field-label">Client Name</label>
+    <input type="text" id="client-name" placeholder="Sheena">
+  </div>
+  <div class="field">
+    <label class="field-label">Container #</label>
+    <input type="text" id="container" placeholder="CORU2074870">
+  </div>
+
+  <div id="time-fields">
+    <div class="row">
+      <div class="field">
+        <label class="field-label">Check In</label>
+        <div class="time-picker">
+          <input type="text" id="ci-hour" maxlength="2" placeholder="10" oninput="limitNum(this,12)">
+          <span class="time-sep">:</span>
+          <input type="text" id="ci-min" maxlength="2" placeholder="05" oninput="limitNum(this,59)" onkeydown="onMinKeydown(event,this)">
+          <div class="ampm-group">
+            <button class="ampm-btn active" id="ci-am" onclick="setAmPm('ci','AM')">AM</button>
+            <button class="ampm-btn" id="ci-pm" onclick="setAmPm('ci','PM')">PM</button>
+          </div>
+        </div>
+      </div>
+      <div class="field" id="checkout-wrap">
+        <label class="field-label">Check Out</label>
+        <div class="time-picker">
+          <input type="text" id="co-hour" maxlength="2" placeholder="10" oninput="limitNum(this,12)">
+          <span class="time-sep">:</span>
+          <input type="text" id="co-min" maxlength="2" placeholder="30" oninput="limitNum(this,59)" onkeydown="onMinKeydown(event,this)">
+          <div class="ampm-group">
+            <button class="ampm-btn active" id="co-am" onclick="setAmPm('co','AM')">AM</button>
+            <button class="ampm-btn" id="co-pm" onclick="setAmPm('co','PM')">PM</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <hr class="divider">
+  <button class="generate-btn" onclick="generate()">Generate Email</button>
+  <div class="error" id="error-msg"></div>
+
+  <div class="result" id="result">
+    <div class="result-header">
+      <span class="result-type" id="result-type">check in</span>
+      <button class="copy-btn" id="copy-btn" onclick="copyText()">Copy</button>
+    </div>
+    <div class="result-text" id="result-text"></div>
+  </div>
+</div>
+
+<!-- TEMPLATES PAGE -->
+<div class="page" id="page-templates">
+  <div class="header">
+    <div>
+      <div class="company">Long Road Transportation · Seattle, WA</div>
+      <h1>Email <span>Templates</span></h1>
+    </div>
+    <button class="nav-btn" onclick="goTo('generator')">
+      <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+      Back
+    </button>
+  </div>
+
+  <div class="stpl-tabs">
+    <button class="stpl-tab active" onclick="switchTpl('checkin',this)">Check In</button>
+    <button class="stpl-tab" onclick="switchTpl('unloaded',this)">Unloaded</button>
+    <button class="stpl-tab" onclick="switchTpl('returned',this)">Port Return</button>
+  </div>
+
+  <div class="stpl-panel open" id="tpl-checkin">
+    <span class="tpl-section-label">Template · Check In</span>
+    <div class="tpl-editor" id="ed-checkin" contenteditable="true" spellcheck="false" oninput="onEditorInput('checkin')" onkeydown="handleKey(event)"></div>
+    <div class="vars-hint">Variables: <span class="var-tag">{name}</span> <span class="var-tag">{container}</span> <span class="var-tag">{checkin}</span></div>
+  </div>
+  <div class="stpl-panel" id="tpl-unloaded">
+    <span class="tpl-section-label">Template · Unloaded</span>
+    <div class="tpl-editor" id="ed-unloaded" contenteditable="true" spellcheck="false" oninput="onEditorInput('unloaded')" onkeydown="handleKey(event)"></div>
+    <div class="vars-hint">Variables: <span class="var-tag">{name}</span> <span class="var-tag">{container}</span> <span class="var-tag">{checkin}</span> <span class="var-tag">{checkout}</span></div>
+  </div>
+  <div class="stpl-panel" id="tpl-returned">
+    <span class="tpl-section-label">Template · Port Return</span>
+    <div class="tpl-editor" id="ed-returned" contenteditable="true" spellcheck="false" oninput="onEditorInput('returned')" onkeydown="handleKey(event)"></div>
+    <div class="vars-hint">Variables: <span class="var-tag">{name}</span> <span class="var-tag">{container}</span></div>
+  </div>
+
+  <div class="settings-actions">
+    <button class="btn-save" onclick="saveTemplates()">Save Templates</button>
+    <button class="btn-reset" onclick="resetTemplates()">Reset to Default</button>
+  </div>
+  <div class="save-msg" id="save-msg"></div>
+</div>
+
+<!-- GATE SCHEDULE PAGE -->
+<div class="page" id="page-schedule">
+  <div class="header">
+    <div>
+      <div class="company">Long Road Transportation · Seattle, WA</div>
+      <h1>Gate <span>Schedule</span></h1>
+    </div>
+    <button class="nav-btn" onclick="goTo('home')">
+      <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+      Menu
+    </button>
+  </div>
+
+  <div class="schedule-wrap" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;padding:3rem 2rem;text-align:center;min-height:360px;">
+    <div style="width:64px;height:64px;border-radius:16px;background:rgba(232,197,71,0.1);border:1px solid rgba(232,197,71,0.2);display:flex;align-items:center;justify-content:center;">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.7"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+    </div>
+    <div>
+      <div style="font-size:16px;font-weight:500;color:var(--text);margin-bottom:8px;">NWSA Gate Schedule</div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);line-height:1.8;">
+        T5 · T18 · Husky · PCT · WUT · EB1 · T7<br>
+        The site doesn't allow embedding — opens in your browser.
+      </div>
+    </div>
+    <button class="generate-btn" style="width:auto;padding:12px 32px;font-size:13px;" onclick="window.open('https://www.nwseaportalliance.com/cargo-operations/terminals/gate-schedules','_blank')">
+      Open Gate Schedule ↗
+    </button>
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:0.05em;">
+      nwseaportalliance.com · updates daily
+    </div>
+  </div>
+</div>
+
+<script>
+var VALID_VARS = ['{name}','{container}','{checkin}','{checkout}'];
+var DEFAULTS = {
+  checkin:  "Hello {name},\n\nDriver with Container# {container} is onsite,\n\nCheck In time - {checkin}\n\nWe will update you once the container is unloaded.",
+  unloaded: "Hello {name},\n\nContainer# {container} was successfully unloaded at the designated location,\n\nCheck in: {checkin}\nCheck out: {checkout}\n\nPlease check attached BOL",
+  returned: "Hello, {name}!\n\nThe container {container} has been returned successfully.\n\nIf you have any questions or concerns please do not hesitate to contact us."
+};
+var templates = {};
+var currentType = 'checkin';
+var ampmState = {ci:'AM', co:'AM'};
+var iframeStarted = false;
+var fallbackTimer = null;
+
+/* THEME */
+function toggleTheme() {
+  var html = document.documentElement;
+  var dark = html.getAttribute('data-theme') === 'dark';
+  html.setAttribute('data-theme', dark ? 'light' : 'dark');
+  try { localStorage.setItem('lrt_theme', dark ? 'light' : 'dark'); } catch(e) {}
+}
+
+function goTo(page) {
+  document.querySelectorAll('.page').forEach(function(p){ p.classList.remove('active'); });
+  document.getElementById('page-' + page).classList.add('active');
+  window.scrollTo(0,0);
+  if (page === 'home') {
+    document.body.classList.remove('inner-page');
+  } else {
+    document.body.classList.add('inner-page');
+  }
+  if (page === 'schedule' && !iframeStarted) {
+    iframeStarted = true;
+    document.getElementById('sch-iframe').src = 'https://www.nwseaportalliance.com/cargo-operations/terminals/gate-schedules';
+    fallbackTimer = setTimeout(iframeBlocked, 8000);
+  }
+}
+
+/* IFRAME */
+function iframeLoaded() {
+  clearTimeout(fallbackTimer);
+  try {
+    var doc = document.getElementById('sch-iframe').contentDocument;
+    if (doc && doc.body && doc.body.innerHTML.length > 100) {
+      showIframe(); return;
+    }
+  } catch(e) { /* cross-origin - assume it worked */ }
+  showIframe();
+}
+
+function showIframe() {
+  document.getElementById('sch-loading').style.display = 'none';
+  document.getElementById('sch-iframe').style.opacity = '1';
+}
+
+function iframeBlocked() {
+  clearTimeout(fallbackTimer);
+  document.getElementById('sch-loading').style.display = 'none';
+  document.getElementById('sch-iframe').style.display = 'none';
+  document.getElementById('sch-blocked').style.display = 'flex';
+}
+
+/* EDITOR */
+function getEditorText(key) {
+  var el = document.getElementById('ed-' + key);
+  var html = el.innerHTML;
+  html = html.replace(/<br\s*\/?>/gi, '\n');
+  html = html.replace(/<\/div>/gi, '\n');
+  html = html.replace(/<\/p>/gi, '\n');
+  html = html.replace(/<[^>]+>/g, '');
+  html = html.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&nbsp;/g,' ');
+  return html.replace(/\n+$/, '');
+}
+
+function renderEditor(key, text) {
+  var el = document.getElementById('ed-' + key);
+  var lines = text.split('\n');
+  var html = lines.map(function(line) {
+    if (line === '') return '<br>';
+    var esc = line.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    var hi = esc.replace(/\{[a-zA-Z]+\}/g, function(m) {
+      var raw = m.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>');
+      var cls = VALID_VARS.indexOf(raw) !== -1 ? 'var-valid' : 'var-invalid';
+      return '<span class="' + cls + '">' + m + '</span>';
+    });
+    return '<div>' + hi + '</div>';
+  });
+  el.innerHTML = html.join('');
+}
+
+function getCaretPos(el) {
+  var sel = window.getSelection();
+  if (!sel || !sel.rangeCount) return 0;
+  var r = sel.getRangeAt(0), pre = r.cloneRange();
+  pre.selectNodeContents(el); pre.setEnd(r.endContainer, r.endOffset);
+  return pre.toString().length;
+}
+
+function setCaretPos(el, pos) {
+  var w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null, false);
+  var node, acc = 0;
+  while ((node = w.nextNode())) {
+    var next = acc + node.length;
+    if (next >= pos) {
+      var r = document.createRange(), sel = window.getSelection();
+      r.setStart(node, pos - acc); r.collapse(true);
+      sel.removeAllRanges(); sel.addRange(r); return;
+    }
+    acc = next;
+  }
+  var r = document.createRange(), sel = window.getSelection();
+  r.selectNodeContents(el); r.collapse(false);
+  sel.removeAllRanges(); sel.addRange(r);
+}
+
+function onEditorInput(key) {
+  var el = document.getElementById('ed-' + key);
+  var pos = getCaretPos(el);
+  var text = getEditorText(key);
+  renderEditor(key, text);
+  setCaretPos(el, pos);
+}
+
+function handleKey(e) {
+  if (e.key === 'Tab') { e.preventDefault(); document.execCommand('insertText', false, '    '); }
+}
+
+function switchTpl(key, el) {
+  document.querySelectorAll('.stpl-tab').forEach(function(t){ t.classList.remove('active'); });
+  document.querySelectorAll('.stpl-panel').forEach(function(p){ p.classList.remove('open'); });
+  el.classList.add('active');
+  document.getElementById('tpl-' + key).classList.add('open');
+}
+
+/* TEMPLATES LOAD/SAVE */
+function loadTemplates() {
+  try {
+    var s = localStorage.getItem('lrt_templates');
+    templates = s ? JSON.parse(s) : Object.assign({}, DEFAULTS);
+  } catch(e) { templates = Object.assign({}, DEFAULTS); }
+  ['checkin','unloaded','returned'].forEach(function(k){ renderEditor(k, templates[k]); });
+}
+
+function saveTemplates() {
+  ['checkin','unloaded','returned'].forEach(function(k){ templates[k] = getEditorText(k); });
+  try { localStorage.setItem('lrt_templates', JSON.stringify(templates)); } catch(e) {}
+  showSaveMsg('✓ Saved');
+}
+
+function resetTemplates() {
+  if (!confirm('Reset all templates to default?')) return;
+  templates = Object.assign({}, DEFAULTS);
+  try { localStorage.removeItem('lrt_templates'); } catch(e) {}
+  ['checkin','unloaded','returned'].forEach(function(k){ renderEditor(k, templates[k]); });
+  showSaveMsg('✓ Reset to default');
+}
+
+function showSaveMsg(t) {
+  var el = document.getElementById('save-msg');
+  el.textContent = t;
+  setTimeout(function(){ el.textContent=''; }, 2500);
+}
+
+/* GENERATOR */
+function setAmPm(id, val) {
+  ampmState[id] = val;
+  document.getElementById(id+'-am').classList.toggle('active', val==='AM');
+  document.getElementById(id+'-pm').classList.toggle('active', val==='PM');
+}
+
+function limitNum(el, max) {
+  var v = el.value.replace(/\D/g,'');
+  if (v !== '' && parseInt(v) > max) v = String(max);
+  el.value = v;
+  if (v.length === 2 && el.id.indexOf('hour') !== -1) {
+    var nextId = el.id.replace('hour', 'min');
+    var next = document.getElementById(nextId);
+    if (next) { next.focus(); next.select(); }
+  }
+}
+
+function onMinKeydown(e, el) {
+  if (e.key === 'Backspace' && el.value === '') {
+    var prevId = el.id.replace('min', 'hour');
+    var prev = document.getElementById(prevId);
+    if (prev) { prev.focus(); prev.select(); }
+  }
+}
+
+function getTime(id) {
+  var h = document.getElementById(id+'-hour').value.trim();
+  var m = document.getElementById(id+'-min').value.trim();
+  if (!h || !m) return '';
+  return h + ':' + m.padStart(2,'0') + ' ' + ampmState[id];
+}
+
+function setType(type, el) {
+  currentType = type;
+  document.querySelectorAll('.tab').forEach(function(t){ t.classList.remove('active'); });
+  el.classList.add('active');
+  var tf = document.getElementById('time-fields');
+  var cw = document.getElementById('checkout-wrap');
+  tf.style.display = type === 'returned' ? 'none' : 'block';
+  if (type !== 'returned') cw.style.display = type === 'unloaded' ? 'block' : 'none';
+  document.getElementById('result').style.display = 'none';
+  document.getElementById('error-msg').style.display = 'none';
+}
+
+function showError(msg) {
+  var el = document.getElementById('error-msg');
+  el.textContent = '⚠ ' + msg; el.style.display = 'block';
+}
+
+function generate() {
+  document.getElementById('error-msg').style.display = 'none';
+  ['checkin','unloaded','returned'].forEach(function(k){ templates[k] = getEditorText(k); });
+  var name = document.getElementById('client-name').value.trim();
+  var container = document.getElementById('container').value.trim();
+  var checkin = getTime('ci'), checkout = getTime('co');
+  if (!name) { showError('Enter client name.'); return; }
+  if (!container) { showError('Enter container number.'); return; }
+  var tpl = '', typeLabel = '';
+  if (currentType === 'checkin') {
+    if (!checkin) { showError('Enter Check In time.'); return; }
+    tpl = templates.checkin; typeLabel = 'check in';
+  } else if (currentType === 'unloaded') {
+    if (!checkin)  { showError('Enter Check In time.'); return; }
+    if (!checkout) { showError('Enter Check Out time.'); return; }
+    tpl = templates.unloaded; typeLabel = 'unloaded';
+  } else {
+    tpl = templates.returned; typeLabel = 'port return';
+  }
+  var email = tpl
+    .replace(/\{name\}/g, name).replace(/\{container\}/g, container)
+    .replace(/\{checkin\}/g, checkin).replace(/\{checkout\}/g, checkout);
+  document.getElementById('result-text').textContent = email;
+  document.getElementById('result-type').textContent = typeLabel;
+  document.getElementById('result').style.display = 'block';
+
+  // Clear fields after generation
+  document.getElementById('client-name').value = '';
+  document.getElementById('container').value = '';
+  document.getElementById('ci-hour').value = '';
+  document.getElementById('ci-min').value = '';
+  document.getElementById('co-hour').value = '';
+  document.getElementById('co-min').value = '';
+  setAmPm('ci', 'AM');
+  setAmPm('co', 'AM');
+}
+
+function copyText() {
+  var text = document.getElementById('result-text').textContent;
+  navigator.clipboard.writeText(text).then(function() {
+    var btn = document.getElementById('copy-btn');
+    btn.textContent = 'Copied ✓'; btn.classList.add('copied');
+    setTimeout(function(){ btn.textContent='Copy'; btn.classList.remove('copied'); }, 2000);
+  });
+}
+
+function updateClock() {
+  var now = new Date();
+  var opts = { timeZone: 'America/Los_Angeles' };
+  var h = now.toLocaleString('en-US', Object.assign({hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:true}, opts));
+  var d = now.toLocaleString('en-US', Object.assign({weekday:'short', month:'short', day:'numeric'}, opts));
+  var el = document.getElementById('wx-time');
+  var del = document.getElementById('wx-date');
+  if (el) el.textContent = h;
+  if (del) del.textContent = d;
+  updateWeatherAge();
+}
+
+/* WEATHER AGE */
+var lastWeatherUpdate = null;
+
+function updateWeatherAge() {
+  var el = document.getElementById('wx-age');
+  if (!el || !lastWeatherUpdate) return;
+  var mins = Math.floor((Date.now() - lastWeatherUpdate) / 60000);
+  if (mins < 1) el.textContent = 'updated just now';
+  else if (mins === 1) el.textContent = 'updated 1 min ago';
+  else el.textContent = 'updated ' + mins + ' min ago';
+}
+
+/* WEATHER */
+var WX_CODES = {
+  0:['☀️','Clear'], 1:['🌤','Mostly Clear'], 2:['⛅','Partly Cloudy'], 3:['☁️','Overcast'],
+  45:['🌫','Fog'], 48:['🌫','Icy Fog'],
+  51:['🌦','Drizzle'], 53:['🌦','Drizzle'], 55:['🌧','Heavy Drizzle'],
+  61:['🌧','Light Rain'], 63:['🌧','Rain'], 65:['🌧','Heavy Rain'],
+  71:['🌨','Light Snow'], 73:['🌨','Snow'], 75:['❄️','Heavy Snow'],
+  80:['🌦','Showers'], 81:['🌧','Showers'], 82:['⛈','Heavy Showers'],
+  95:['⛈','Thunderstorm'], 96:['⛈','Thunderstorm'], 99:['⛈','Thunderstorm']
+};
+
+function fetchWeather() {
+  var url = 'https://api.open-meteo.com/v1/forecast?latitude=47.6062&longitude=-122.3321&current=temperature_2m,apparent_temperature,weather_code&temperature_unit=celsius&timezone=America/Los_Angeles';
+  fetch(url)
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      var c    = data.current;
+      var temp  = Math.round(c.temperature_2m);
+      var feels = Math.round(c.apparent_temperature);
+      var code  = c.weather_code;
+      var wx    = WX_CODES[code] || WX_CODES[Math.floor(code/10)*10] || ['🌡','Unknown'];
+      document.getElementById('wx-temp').textContent  = temp + '°C';
+      document.getElementById('wx-desc').textContent  = wx[1];
+      document.getElementById('wx-feels').textContent = 'Feels like ' + feels + '°C';
+      document.getElementById('wx-icon').textContent  = wx[0];
+      lastWeatherUpdate = Date.now();
+      document.getElementById('wx-age').textContent = 'updated just now';
+    })
+    .catch(function() {
+      document.getElementById('wx-desc').textContent = 'No connection';
+    });
+}
+
+function weatherCallback() {}
+
+/* INIT */
+try {
+  var t = localStorage.getItem('lrt_theme');
+  if (t) document.documentElement.setAttribute('data-theme', t);
+} catch(e) {}
+loadTemplates();
+setType('checkin', document.querySelector('.tab'));
+updateClock();
+setInterval(updateClock, 1000);
+fetchWeather();
+setInterval(fetchWeather, 15 * 60 * 1000);
+</script>
+<!-- STANDBY CALCULATOR PAGE -->
+<div class="page" id="page-standby">
+  <div class="header">
+    <div>
+      <div class="company">Long Road Transportation · Seattle, WA</div>
+      <h1>Standby <span>Calculator</span></h1>
+    </div>
+    <button class="nav-btn" onclick="goTo('home')">
+      <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+      Menu
+    </button>
+  </div>
+
+  <div class="row">
+    <div class="field">
+      <label class="field-label">Arrival Time</label>
+      <div class="time-picker">
+        <input type="text" id="sb-arr-hour" maxlength="2" placeholder="10" oninput="limitNum(this,23);sbAutoJump(this,'sb-arr-min')">
+        <span class="time-sep">:</span>
+        <input type="text" id="sb-arr-min" maxlength="2" placeholder="00" oninput="limitNum(this,59)" onkeydown="sbBackJump(event,this,'sb-arr-hour')">
+      </div>
+    </div>
+    <div class="field">
+      <label class="field-label">Departure Time</label>
+      <div class="time-picker">
+        <input type="text" id="sb-dep-hour" maxlength="2" placeholder="14" oninput="limitNum(this,23);sbAutoJump(this,'sb-dep-min')">
+        <span class="time-sep">:</span>
+        <input type="text" id="sb-dep-min" maxlength="2" placeholder="00" oninput="limitNum(this,59)" onkeydown="sbBackJump(event,this,'sb-dep-hour')">
+      </div>
+    </div>
+  </div>
+
+  <hr class="divider">
+  <button class="generate-btn" onclick="calcStandby()">Calculate Standby</button>
+  <div class="error" id="sb-error" style="display:none;"></div>
+
+  <div id="sb-result" style="display:none; margin-top:1.5rem;">
+    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:1rem;">
+      <div style="background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:1rem; text-align:center;">
+        <div style="font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:6px;">Total Time</div>
+        <div id="sb-total" style="font-size:22px; font-weight:300; color:var(--text);">—</div>
+      </div>
+      <div style="background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:1rem; text-align:center;">
+        <div style="font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:6px;">Standby</div>
+        <div id="sb-minutes" style="font-size:22px; font-weight:300; color:var(--text);">—</div>
+      </div>
+      <div style="background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:1rem; text-align:center;">
+        <div style="font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:6px;">Amount</div>
+        <div id="sb-amount" style="font-size:22px; font-weight:300;">—</div>
+      </div>
+    </div>
+    <div id="sb-note" style="font-family:'IBM Plex Mono',monospace; font-size:11px; text-align:center; padding:10px; background:var(--surface2); border-radius:6px; border:1px solid var(--border);"></div>
+  </div>
+</div>
+
+<script>
+function sbAutoJump(el, nextId) {
+  if (el.value.length === 2) {
+    var next = document.getElementById(nextId);
+    if (next) { next.focus(); next.select(); }
+  }
+}
+function sbBackJump(e, el, prevId) {
+  if (e.key === 'Backspace' && el.value === '') {
+    var prev = document.getElementById(prevId);
+    if (prev) { prev.focus(); prev.select(); }
+  }
+}
+
+function calcStandby() {
+  var errEl = document.getElementById('sb-error');
+  errEl.style.display = 'none';
+
+  var arrH = document.getElementById('sb-arr-hour').value.trim();
+  var arrM = document.getElementById('sb-arr-min').value.trim();
+  var depH = document.getElementById('sb-dep-hour').value.trim();
+  var depM = document.getElementById('sb-dep-min').value.trim();
+
+  if (!arrH || !depH) {
+    errEl.textContent = '⚠ Please enter both times.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  var arrMins = parseInt(arrH) * 60 + parseInt(arrM || 0);
+  var depMins = parseInt(depH) * 60 + parseInt(depM || 0);
+
+  if (depMins <= arrMins) depMins += 24 * 60;
+
+  var totalMins   = depMins - arrMins;
+  var standbyMins = Math.max(0, totalMins - 120);
+  var amount      = standbyMins;
+  var totalH      = Math.floor(totalMins / 60);
+  var totalM      = totalMins % 60;
+
+  document.getElementById('sb-total').textContent   = totalH + 'h ' + totalM + 'm';
+  document.getElementById('sb-minutes').textContent = standbyMins + ' min';
+  document.getElementById('sb-amount').textContent  = '$' + amount;
+
+  var noteEl   = document.getElementById('sb-note');
+  var amountEl = document.getElementById('sb-amount');
+
+  if (standbyMins === 0) {
+    noteEl.textContent   = 'No standby — within the 2-hour free window.';
+    noteEl.style.color   = 'var(--green)';
+    amountEl.style.color = 'var(--green)';
+  } else {
+    noteEl.textContent   = totalH + 'h ' + totalM + 'm  −  2h 00m free  =  ' + standbyMins + ' min × $1  =  $' + amount;
+    noteEl.style.color   = 'var(--muted)';
+    amountEl.style.color = 'var(--accent)';
+  }
+
+  document.getElementById('sb-result').style.display = 'block';
+}
+</script>
+
+<!-- CONTACTS PAGE -->
+<div class="page" id="page-contacts">
+  <div class="header">
+    <div>
+      <div class="company">Long Road Transportation · Seattle, WA</div>
+      <h1>Terminal <span>Contacts</span></h1>
+    </div>
+    <button class="nav-btn" onclick="goTo('home')">
+      <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+      Menu
+    </button>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:10px;">
+
+    <!-- CGI Seattle -->
+    <div class="contact-card">
+      <div class="contact-name">CGI Seattle</div>
+      <div class="contact-row"><a href="mailto:seaeqc@conglobal.com">seaeqc@conglobal.com</a></div>
+      <div class="contact-row"><a href="tel:+12066248180">(206) 624-8180</a></div>
+    </div>
+
+    <!-- PTSC -->
+    <div class="contact-card">
+      <div class="contact-name">PTSC — West Hylebos</div>
+      <div class="contact-row"><a href="mailto:customerservice@ptscus.com">customerservice@ptscus.com</a></div>
+      <div class="contact-row"><a href="tel:+13857775522">(385) 777-5522</a></div>
+    </div>
+
+    <!-- T18 -->
+    <div class="contact-card">
+      <div class="contact-name">T18</div>
+      <div class="contact-row"><a href="mailto:Matt.Bryson@ssamarine.com">Matt.Bryson@ssamarine.com</a></div>
+      <div class="contact-row"><a href="tel:+18665453142">(866) 545-3142</a></div>
+    </div>
+
+    <!-- T30 -->
+    <div class="contact-card">
+      <div class="contact-name">T30</div>
+      <div class="contact-row"><a href="mailto:Nathan.Arnold@SSAMarine.com">Nathan.Arnold@SSAMarine.com</a> · <a href="tel:+12063934070">(206) 393-4070</a></div>
+      <div class="contact-row"><a href="mailto:Amy.Sponberg@SSAMarine.com">Amy.Sponberg@SSAMarine.com</a> · <a href="tel:+18665453142">(866) 545-3142</a></div>
+    </div>
+
+    <!-- T5 -->
+    <div class="contact-card">
+      <div class="contact-name">T5</div>
+      <div class="contact-row"><a href="mailto:T5CustomerService@SSAMarine.com">T5CustomerService@SSAMarine.com</a></div>
+      <div class="contact-row"><a href="tel:+18665453142">(866) 545-3142</a></div>
+    </div>
+
+    <!-- SSA Marine -->
+    <div class="contact-card">
+      <div class="contact-name">SSA Marine</div>
+      <div class="contact-row"><a href="mailto:Tamara.Benson-Kulp@ssamarine.com">Tamara.Benson-Kulp@ssamarine.com</a></div>
+      <div class="contact-row"><a href="mailto:Kelsey.Bolton@ssamarine.com">Kelsey.Bolton@ssamarine.com</a></div>
+      <div class="contact-row"><a href="mailto:Matt.Bryson@ssamarine.com">Matt.Bryson@ssamarine.com</a></div>
+      <div class="contact-row" style="margin-top:6px;">
+        <span style="color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:0.08em;">Ph</span>
+        <a href="tel:+12066543781">(206) 654-3781</a>
+        &nbsp;·&nbsp;
+        <span style="color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:0.08em;">Cell</span>
+        <a href="tel:+12065507755">(206) 550-7755</a>
+      </div>
+    </div>
+
+    <!-- WUT -->
+    <div class="contact-card">
+      <div class="contact-name">WUT</div>
+      <div class="contact-row"><a href="mailto:clientsupport@uswut.com">clientsupport@uswut.com</a></div>
+      <div class="contact-row">
+        <span class="contact-label">Import</span>
+        <a href="tel:+12533964914">(253) 396-4914</a> · <a href="tel:+12533964917">(253) 396-4917</a>
+      </div>
+      <div class="contact-row">
+        <span class="contact-label">Export</span>
+        <a href="tel:+12533964915">(253) 396-4915</a> · <a href="tel:+12533964917">(253) 396-4917</a>
+      </div>
+    </div>
+
+    <!-- PCT Evergreen -->
+    <div class="contact-card">
+      <div class="contact-name">PCT — Evergreen</div>
+      <div class="contact-row"><a href="mailto:customerservice-tiw@ebpiusa.com">customerservice-tiw@ebpiusa.com</a></div>
+      <div class="contact-row">
+        <a href="tel:+12532874106">(253) 287-4106</a> ·
+        <a href="tel:+12532874114">(253) 287-4114</a> ·
+        <a href="tel:+12532874113">(253) 287-4113</a>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<style>
+.contact-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+  transition: border-color 0.15s;
+}
+.contact-card:hover { border-color: var(--border2); }
+.contact-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.contact-row {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 5px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.contact-row a {
+  color: var(--accent);
+  text-decoration: none;
+  transition: opacity 0.15s;
+}
+.contact-row a:hover { opacity: 0.75; }
+.contact-label {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 1px 6px;
+}
+</style>
+
+<!-- DRIVERS PAGE -->
+<div class="page" id="page-drivers">
+  <div class="header">
+    <div>
+      <div class="company">Long Road Transportation · Seattle, WA</div>
+      <h1>Driver's <span>License Plates</span></h1>
+    </div>
+    <button class="nav-btn" onclick="goTo('home')">
+      <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+      Menu
+    </button>
+  </div>
+
+  <!-- SEARCH + ADD -->
+  <div style="display:flex;gap:10px;margin-bottom:1.5rem;">
+    <div style="position:relative;flex:1;">
+      <svg style="position:absolute;left:12px;top:50%;transform:translateY(-50%);width:14px;height:14px;stroke:var(--muted);fill:none;stroke-width:2;" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" id="drv-search" placeholder="Search by name or plate..." oninput="renderDrivers()"
+        style="padding-left:36px;width:100%;background:var(--surface);border:1px solid var(--border);border-radius:4px;padding-top:10px;padding-bottom:10px;padding-left:36px;color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:13px;outline:none;">
+    </div>
+    <button class="nav-btn" onclick="openAddDriver()" style="white-space:nowrap;color:var(--accent);border-color:var(--accent);">
+      <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Add Driver
+    </button>
+  </div>
+
+  <!-- TABLE HEADER -->
+  <div style="display:grid;grid-template-columns:1fr 140px 80px;gap:0;margin-bottom:6px;padding:0 16px;">
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;">Name</div>
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;">Plate</div>
+    <div></div>
+  </div>
+
+  <!-- DRIVER LIST -->
+  <div id="drv-list" style="display:flex;flex-direction:column;gap:6px;"></div>
+  <div id="drv-empty" style="display:none;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--muted);text-align:center;padding:2rem;">No results found.</div>
+
+  <!-- ADD / EDIT MODAL -->
+  <div id="drv-modal" style="display:none;position:fixed;inset:0;z-index:100;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);">
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.5rem;width:100%;max-width:400px;margin:1rem;">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--accent);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:1.25rem;" id="modal-title">Add Driver</div>
+      <div class="field">
+        <label class="field-label">Driver Name</label>
+        <input type="text" id="modal-name" placeholder="Ivan Petrov">
+      </div>
+      <div class="field">
+        <label class="field-label">Plate Number</label>
+        <input type="text" id="modal-plate" placeholder="C12345X" style="text-transform:uppercase;">
+      </div>
+      <div style="display:flex;gap:8px;margin-top:1.25rem;">
+        <button class="btn-save" id="modal-save-btn" onclick="saveDriver()">Save</button>
+        <button class="btn-reset" id="modal-cancel-btn" onclick="closeModal()">Cancel</button>
+      </div>
+      <div id="modal-error" style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--red);margin-top:8px;display:none;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- DELETE CONFIRMATION MODAL -->
+<div id="drv-del-modal" style="display:none;position:fixed;inset:0;z-index:100;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.5rem;width:100%;max-width:380px;margin:1rem;text-align:center;">
+    <div style="width:48px;height:48px;border-radius:50%;background:rgba(224,82,82,0.12);border:1px solid rgba(224,82,82,0.3);display:flex;align-items:center;justify-content:center;margin:0 auto 1rem;">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+    </div>
+    <div style="font-size:15px;font-weight:500;color:var(--text);margin-bottom:8px;">Delete Driver?</div>
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--muted);margin-bottom:1.5rem;line-height:1.8;">
+      Are you sure you want to delete<br>
+      <span id="del-driver-name" style="color:var(--muted);font-weight:500;"></span>?<br>
+      This action cannot be undone.
+    </div>
+    <input type="hidden" id="del-confirm-id">
+    <div style="display:flex;gap:8px;">
+      <button onclick="document.getElementById('drv-del-modal').style.display='none'" class="btn-reset" style="flex:1;">Cancel</button>
+      <button onclick="confirmDelete()" style="flex:1;padding:10px;background:var(--red);color:#fff;font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:500;letter-spacing:0.08em;text-transform:uppercase;border:none;border-radius:4px;cursor:pointer;">Delete</button>
+    </div>
+  </div>
+</div>
+
+<style>
+.drv-row {
+  display: grid;
+  grid-template-columns: 1fr 140px 80px;
+  align-items: center;
+  gap: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 16px;
+  transition: border-color 0.15s;
+}
+.drv-row:hover { border-color: var(--border2); }
+.drv-name { font-size: 14px; color: var(--text); font-weight: 400; }
+.drv-plate {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 13px;
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.drv-actions { display: flex; gap: 6px; justify-content: flex-end; }
+.drv-btn {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 4px 8px;
+  border-radius: 3px;
+  border: 1px solid var(--border);
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.drv-btn:hover { color: var(--text); border-color: var(--border2); }
+.drv-btn.del:hover { color: var(--red); border-color: var(--red); }
+</style>
+
+<script>
+var DEFAULT_DRIVERS = [
+  { id: 1, name: 'Roman Chaika',      plate: 'RP12090' },
+  { id: 2, name: 'Nikolay Popruzhny', plate: 'C75199Y' },
+  { id: 3, name: 'Ivan Tuman',        plate: 'C77854Y' },
+  { id: 4, name: 'Pavel Korobov',     plate: 'C02875Z' },
+  { id: 5, name: 'George Sirotinskiy',plate: 'C98321X' },
+  { id: 6, name: 'David Fendich',     plate: 'D27461J' }
+];
+
+var drivers = [];
+var editingId = null;
+var nextId = 100;
+
+function loadDrivers() {
+  try {
+    var s = localStorage.getItem('lrt_drivers');
+    drivers = s ? JSON.parse(s) : DEFAULT_DRIVERS.slice();
+    nextId = drivers.reduce(function(m,d){ return Math.max(m, d.id+1); }, 100);
+  } catch(e) { drivers = DEFAULT_DRIVERS.slice(); }
+}
+
+function saveDriversStorage() {
+  try { localStorage.setItem('lrt_drivers', JSON.stringify(drivers)); } catch(e) {}
+}
+
+function toTitleCase(str) {
+  return str.replace(/\w\S*/g, function(w){ return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase(); });
+}
+
+function renderDrivers() {
+  var q = (document.getElementById('drv-search').value || '').toLowerCase();
+  var list = document.getElementById('drv-list');
+  var empty = document.getElementById('drv-empty');
+  var filtered = drivers.filter(function(d) {
+    return d.name.toLowerCase().indexOf(q) !== -1 || d.plate.toLowerCase().indexOf(q) !== -1;
+  });
+  if (filtered.length === 0) {
+    list.innerHTML = ''; empty.style.display = 'block'; return;
+  }
+  empty.style.display = 'none';
+  list.innerHTML = filtered.map(function(d) {
+    return '<div class="drv-row">' +
+      '<div class="drv-name">' + d.name + '</div>' +
+      '<div class="drv-plate">' + d.plate + '</div>' +
+      '<div class="drv-actions">' +
+        '<button class="drv-btn" onclick="openEditDriver(' + d.id + ')">Edit</button>' +
+        '<button class="drv-btn del" onclick="deleteDriver(' + d.id + ')">Del</button>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function openAddDriver() {
+  editingId = null;
+  document.getElementById('modal-title').textContent = 'Add Driver';
+  document.getElementById('modal-name').value = '';
+  document.getElementById('modal-plate').value = '';
+  document.getElementById('modal-error').style.display = 'none';
+  document.getElementById('drv-modal').style.display = 'flex';
+  setTimeout(function(){ document.getElementById('modal-name').focus(); }, 50);
+}
+
+function openEditDriver(id) {
+  var d = drivers.find(function(x){ return x.id === id; });
+  if (!d) return;
+  editingId = id;
+  document.getElementById('modal-title').textContent = 'Edit Driver';
+  document.getElementById('modal-name').value = d.name;
+  document.getElementById('modal-plate').value = d.plate;
+  document.getElementById('modal-error').style.display = 'none';
+  document.getElementById('drv-modal').style.display = 'flex';
+  setTimeout(function(){ document.getElementById('modal-name').focus(); }, 50);
+}
+
+function saveDriver() {
+  var name  = toTitleCase(document.getElementById('modal-name').value.trim());
+  var plate = document.getElementById('modal-plate').value.trim().toUpperCase();
+  var errEl = document.getElementById('modal-error');
+  var saveBtn = document.getElementById('modal-save-btn');
+  var cancelBtn = document.getElementById('modal-cancel-btn');
+  if (!name) { errEl.textContent = 'Enter driver name.'; errEl.style.display = 'block'; return; }
+  if (!plate) { errEl.textContent = 'Enter plate number.'; errEl.style.display = 'block'; return; }
+
+  if (editingId !== null) {
+    drivers = drivers.map(function(d){ return d.id === editingId ? {id:d.id, name:name, plate:plate} : d; });
+  } else {
+    drivers.push({ id: nextId++, name: name, plate: plate });
+  }
+  saveDriversStorage();
+  renderDrivers();
+
+  // Show saved state
+  saveBtn.textContent = 'Saved ✓';
+  saveBtn.style.background = 'var(--green)';
+  saveBtn.style.color = '#fff';
+  saveBtn.disabled = true;
+  cancelBtn.textContent = 'Back';
+
+  setTimeout(function() {
+    saveBtn.style.background = 'var(--accent)';
+    saveBtn.style.color = '#0e0f11';
+    saveBtn.textContent = 'Save';
+    saveBtn.disabled = false;
+    cancelBtn.textContent = 'Cancel';
+    closeModal();
+  }, 1400);
+}
+
+function deleteDriver(id) {
+  var d = drivers.find(function(x){ return x.id === id; });
+  if (!d) return;
+  document.getElementById('del-driver-name').textContent = d.name;
+  document.getElementById('del-confirm-id').value = id;
+  document.getElementById('drv-del-modal').style.display = 'flex';
+}
+
+function confirmDelete() {
+  var id = parseInt(document.getElementById('del-confirm-id').value);
+  drivers = drivers.filter(function(d){ return d.id !== id; });
+  saveDriversStorage();
+  renderDrivers();
+  document.getElementById('drv-del-modal').style.display = 'none';
+}
+
+function closeModal() {
+  document.getElementById('drv-modal').style.display = 'none';
+  editingId = null;
+}
+
+// Close modal on backdrop click
+document.getElementById('drv-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+
+loadDrivers();
+renderDrivers();
+</script>
+
+</body>
+</html>
