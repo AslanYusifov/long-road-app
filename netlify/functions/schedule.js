@@ -6,9 +6,8 @@ exports.handler = async function() {
   const html = await new Promise((resolve, reject) => {
     https.get(url, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml',
-        'Accept-Language': 'en-US,en;q=0.9'
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+        'Accept': 'text/html'
       }
     }, res => {
       let data = '';
@@ -17,26 +16,20 @@ exports.handler = async function() {
     }).on('error', reject);
   });
 
-  const calStart = html.indexOf('gate-schedule');
-  const calSection = calStart > -1 ? html.slice(calStart, calStart + 3000) : html.slice(5000, 8000);
+  // Find context around "Open" and "Closed"
+  const openIdx = html.indexOf('Open');
+  const closedIdx = html.indexOf('Closed');
+  
+  const openCtx = openIdx > -1 ? html.slice(Math.max(0, openIdx - 300), openIdx + 300) : 'not found';
+  const closedCtx = closedIdx > -1 ? html.slice(Math.max(0, closedIdx - 300), closedIdx + 300) : 'not found';
 
-  const t5idx = html.indexOf('T5');
-  const t5section = t5idx > -1 ? html.slice(t5idx - 100, t5idx + 500) : 'T5 not found';
+  // Find views-row context
+  const rowIdx = html.indexOf('views-row');
+  const rowCtx = rowIdx > -1 ? html.slice(rowIdx, rowIdx + 1000) : 'not found';
 
   return {
     statusCode: 200,
-    headers: {
-      'Content-Type': 'application/json',
-      'Access-Control-Allow-Origin': '*'
-    },
-    body: JSON.stringify({
-      htmlLength: html.length,
-      calSection: calSection,
-      t5section: t5section,
-      hasDates: html.includes('data-date'),
-      hasCalendar: html.includes('calendar'),
-      hasViewsRow: html.includes('views-row'),
-      hasOpenClosed: html.includes('Open') || html.includes('Closed')
-    })
+    headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+    body: JSON.stringify({ openCtx, closedCtx, rowCtx })
   };
 };
