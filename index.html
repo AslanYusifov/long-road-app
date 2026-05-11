@@ -248,25 +248,7 @@ input[type=text]::placeholder { color: var(--muted); }
 .save-msg { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--green); margin-top: 10px; min-height: 18px; }
 
 /* GATE SCHEDULE */
-.schedule-wrap {
-  border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
-  background: var(--surface); position: relative; min-height: 480px;
-}
-.schedule-loading {
-  position: absolute; inset: 0; display: flex; flex-direction: column;
-  align-items: center; justify-content: center; gap: 12px;
-  color: var(--muted); font-family: 'IBM Plex Mono', monospace; font-size: 12px;
-  pointer-events: none; z-index: 2;
-}
-.schedule-loading svg { animation: spin 1s linear infinite; }
-.schedule-blocked {
-  display: none; flex-direction: column; align-items: center;
-  justify-content: center; gap: 16px; text-align: center; padding: 3rem 2rem;
-}
-.schedule-blocked-title { font-size: 14px; font-weight: 500; color: var(--text); margin-bottom: 4px; }
-.schedule-blocked-desc { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--muted); line-height: 1.7; }
-.schedule-iframe { width: 100%; height: 700px; border: none; display: block; opacity: 0; transition: opacity 0.4s; }
-.schedule-footer { margin-top: 8px; font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--muted); letter-spacing: 0.04em; }
+
 </style>
 </head>
 <body>
@@ -319,9 +301,6 @@ input[type=text]::placeholder { color: var(--muted); }
           <div class="card-body"><div class="card-title">Email Generator</div><div class="card-desc">check-in · unloaded · port return</div></div>
           <div class="card-arrow"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></div>
         </div>
-        <div class="menu-card" onclick="goTo('schedule')">
-          <div class="card-icon"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
-          <div class="card-body"><div class="card-title">Gate Schedule</div><div class="card-desc">nwsa · terminals · daily status</div></div>
           <div class="card-arrow"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></div>
         </div>
       </div>
@@ -527,39 +506,6 @@ input[type=text]::placeholder { color: var(--muted); }
   <div class="save-msg" id="save-msg"></div>
 </div>
 
-<!-- GATE SCHEDULE PAGE -->
-<div class="page" id="page-schedule">
-  <div class="header">
-    <div>
-      <div class="company">Long Road Transportation · Seattle, WA</div>
-      <h1>Gate <span>Schedule</span></h1>
-    </div>
-    <button class="nav-btn" onclick="goTo('home')">
-      <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
-      Menu
-    </button>
-  </div>
-
-  <div class="schedule-wrap" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;padding:3rem 2rem;text-align:center;min-height:360px;">
-    <div style="width:64px;height:64px;border-radius:16px;background:rgba(232,197,71,0.1);border:1px solid rgba(232,197,71,0.2);display:flex;align-items:center;justify-content:center;">
-      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.7"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-    </div>
-    <div>
-      <div style="font-size:16px;font-weight:500;color:var(--text);margin-bottom:8px;">NWSA Gate Schedule</div>
-      <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);line-height:1.8;">
-        T5 · T18 · Husky · PCT · WUT · EB1 · T7<br>
-        The site doesn't allow embedding — opens in your browser.
-      </div>
-    </div>
-    <button class="generate-btn" style="width:auto;padding:12px 32px;font-size:13px;" onclick="window.open('https://www.nwseaportalliance.com/cargo-operations/terminals/gate-schedules','_blank')">
-      Open Gate Schedule ↗
-    </button>
-    <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:0.05em;">
-      nwseaportalliance.com · updates daily
-    </div>
-  </div>
-</div>
-
 <script>
 var VALID_VARS = ['{name}','{container}','{checkin}','{checkout}'];
 var DEFAULTS = {
@@ -570,9 +516,6 @@ var DEFAULTS = {
 var templates = {};
 var currentType = 'checkin';
 var ampmState = {ci:'AM', co:'AM'};
-var iframeStarted = false;
-var fallbackTimer = null;
-
 /* THEME */
 function toggleTheme() {
   var html = document.documentElement;
@@ -590,12 +533,7 @@ function goTo(page) {
   } else {
     document.body.classList.add('inner-page');
   }
-  if (page === 'schedule' && !iframeStarted) {
-    iframeStarted = true;
-    document.getElementById('sch-iframe').src = 'https://www.nwseaportalliance.com/cargo-operations/terminals/gate-schedules';
-    fallbackTimer = setTimeout(iframeBlocked, 8000);
   }
-}
 
 /* IFRAME */
 function iframeLoaded() {
