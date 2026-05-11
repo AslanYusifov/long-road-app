@@ -52,6 +52,18 @@ body {
 .page { display: none; width: 100%; max-width: 560px; position: relative; z-index: 2; }
 #page-home { max-width: 1100px; }
 
+/* Page transitions */
+.page.active { display: block; }
+.page.slide-in-right { animation: slideInRight 0.32s cubic-bezier(.4,0,.2,1) forwards; }
+.page.slide-in-left  { animation: slideInLeft  0.32s cubic-bezier(.4,0,.2,1) forwards; }
+.page.slide-out-left { animation: slideOutLeft 0.32s cubic-bezier(.4,0,.2,1) forwards; }
+.page.slide-out-right{ animation: slideOutRight 0.32s cubic-bezier(.4,0,.2,1) forwards; }
+
+@keyframes slideInRight  { from { opacity:0; transform:translateX(60px);  } to { opacity:1; transform:translateX(0); } }
+@keyframes slideInLeft   { from { opacity:0; transform:translateX(-60px); } to { opacity:1; transform:translateX(0); } }
+@keyframes slideOutLeft  { from { opacity:1; transform:translateX(0); } to { opacity:0; transform:translateX(-60px); } }
+@keyframes slideOutRight { from { opacity:1; transform:translateX(0); } to { opacity:0; transform:translateX(60px);  } }
+
 /* Dark overlay - only on inner pages */
 body::before {
   content: '';
@@ -301,8 +313,6 @@ input[type=text]::placeholder { color: var(--muted); }
           <div class="card-body"><div class="card-title">Email Generator</div><div class="card-desc">check-in · unloaded · port return</div></div>
           <div class="card-arrow"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></div>
         </div>
-          <div class="card-arrow"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></div>
-        </div>
       </div>
 
       <div class="menu-section-label">Contacts</div>
@@ -525,38 +535,30 @@ function toggleTheme() {
 }
 
 function goTo(page) {
-  document.querySelectorAll('.page').forEach(function(p){ p.classList.remove('active'); });
-  document.getElementById('page-' + page).classList.add('active');
-  window.scrollTo(0,0);
-  if (page === 'home') {
-    document.body.classList.remove('inner-page');
-  } else {
-    document.body.classList.add('inner-page');
-  }
-  }
+  var current = document.querySelector('.page.active');
+  var next = document.getElementById('page-' + page);
+  if (!current || !next || current === next) return;
 
-/* IFRAME */
-function iframeLoaded() {
-  clearTimeout(fallbackTimer);
-  try {
-    var doc = document.getElementById('sch-iframe').contentDocument;
-    if (doc && doc.body && doc.body.innerHTML.length > 100) {
-      showIframe(); return;
+  var goingHome = page === 'home';
+
+  // Animate out current
+  current.classList.add(goingHome ? 'slide-out-right' : 'slide-out-left');
+
+  setTimeout(function() {
+    current.classList.remove('active', 'slide-out-right', 'slide-out-left');
+    next.classList.add('active', goingHome ? 'slide-in-left' : 'slide-in-right');
+    window.scrollTo(0, 0);
+
+    setTimeout(function() {
+      next.classList.remove('slide-in-right', 'slide-in-left');
+    }, 350);
+
+    if (page === 'home') {
+      document.body.classList.remove('inner-page');
+    } else {
+      document.body.classList.add('inner-page');
     }
-  } catch(e) { /* cross-origin - assume it worked */ }
-  showIframe();
-}
-
-function showIframe() {
-  document.getElementById('sch-loading').style.display = 'none';
-  document.getElementById('sch-iframe').style.opacity = '1';
-}
-
-function iframeBlocked() {
-  clearTimeout(fallbackTimer);
-  document.getElementById('sch-loading').style.display = 'none';
-  document.getElementById('sch-iframe').style.display = 'none';
-  document.getElementById('sch-blocked').style.display = 'flex';
+  }, 300);
 }
 
 /* EDITOR */
